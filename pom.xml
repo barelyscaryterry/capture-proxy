@@ -20,9 +20,26 @@
     <properties>
         <java.version>17</java.version>
         <traffic-replay-common.version>1.0.0-SNAPSHOT</traffic-replay-common.version>
+        <aws.java.sdk.version>2.25.60</aws.java.sdk.version>
     </properties>
 
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>software.amazon.awssdk</groupId>
+                <artifactId>bom</artifactId>
+                <version>${aws.java.sdk.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
     <dependencies>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>s3</artifactId>
+        </dependency>
         <dependency>
             <groupId>com.trafficreplay</groupId>
             <artifactId>traffic-replay-common</artifactId>

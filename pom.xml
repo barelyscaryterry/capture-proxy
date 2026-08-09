@@ -44,7 +44,7 @@
         </dependency>
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
-            <artifactId>s3</artifactId>
+            <artifactId>dynamodb</artifactId>
         </dependency>
         <dependency>
             <groupId>com.trafficreplay</groupId>

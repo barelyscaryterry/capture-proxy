@@ -1,5 +1,6 @@
 package com.trafficreplay.captureproxy;
 
+import com.trafficreplay.captureproxy.ddb.DynamoDbAdapter;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
@@ -20,14 +21,16 @@ public class NettyServer implements SmartLifecycle {
     private static final Logger log = LoggerFactory.getLogger(NettyServer.class);
 
     private final int port;
+    private final DynamoDbAdapter dynamoDbAdapter;
 
     private EventLoopGroup bossGroup;
     private EventLoopGroup workerGroup;
     private Channel serverChannel;
     private volatile boolean running = false;
 
-    public NettyServer(@Value("${capture-proxy.netty.port:8443}") int port) {
+    public NettyServer(@Value("${capture-proxy.netty.port:8443}") int port, DynamoDbAdapter dynamoDbAdapter) {
         this.port = port;
+        this.dynamoDbAdapter = dynamoDbAdapter;
     }
 
     @Override
@@ -42,7 +45,7 @@ public class NettyServer implements SmartLifecycle {
                         @Override
                         protected void initChannel(SocketChannel ch) {
                             ch.pipeline().addLast(new HttpServerCodec());
-                            ch.pipeline().addLast(new NettyRequestHandler());
+                            ch.pipeline().addLast(new NettyRequestHandler(dynamoDbAdapter));
                         }
                     });
 

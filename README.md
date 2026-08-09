@@ -4,34 +4,36 @@ Intercepts and records incoming HTTP traffic. Part of the `traffic-replay-system
 
 ## Status
 
-Scaffold only — `CaptureProxyApplication` is a bare `@SpringBootApplication` with no
-controllers, filters, or capture logic yet. There is also no `src/main/resources`
-directory, so the app boots with Spring Boot defaults (port 8080, no config file).
+- `CaptureProxyApplication` is a Spring Boot app serving actuator/health (and any future REST
+  surface) on Tomcat, port 8080.
+- A raw Netty server (`NettyServer`) runs alongside it on its own port
+  (`capture-proxy.netty.port`, default `8443`) — this is the actual capture path. It's a
+  Spring-managed `SmartLifecycle` bean, started/stopped with the Spring container.
+- Inbound HTTP requests are parsed by `NettyRequestHandler` (method, URI, headers, body) and
+  persisted to DynamoDB via `DynamoDbAdapter`, keyed by a generated `requestId`.
+- No response is written back to the client yet — this is a capture pass-through, not a
+  functioning proxy.
 
 ## Dependencies
 
 - Java 17
 - Maven
-- [`traffic-replay-common`](../traffic-replay-common) (sibling project, `com.trafficreplay:traffic-replay-common:1.0.0-SNAPSHOT`)
-  — must be built and installed to the local `.m2` repo before this project will build.
+- AWS credentials with DynamoDB access (`AWS_REGION` env var, default `us-east-1`) — via IAM
+  instance profile once deployed, or your usual local AWS credential chain for local runs.
+- A DynamoDB table matching `capture-proxy.ddb.table` (default `capture-proxy-requests`) with a
+  string partition key `requestId`.
 - Kafka (via `spring-kafka`) — not required to boot the app, but needed for any actual
-  Kafka usage once capture logic is added. No broker address is configured yet, so it
-  will default to `localhost:9092`.
+  Kafka usage once that logic is added. No broker address is configured yet, so it will default
+  to `localhost:9092`.
 
 ## Running locally
 
 ```bash
-# 1. Install the shared library first (only needed after it changes)
-cd ../traffic-replay-common
-mvn install -DskipTests
-
-# 2. Run capture-proxy
-cd ../capture-proxy
 mvn spring-boot:run
 ```
 
-The app will start on `http://localhost:8080`. With `spring-boot-starter-actuator`
-on the classpath, `/actuator/health` is available out of the box.
+The Spring app starts on `http://localhost:8080` (`/actuator/health` available via
+`spring-boot-starter-actuator`); the Netty capture server starts on `http://localhost:8443`.
 
 ## Building a jar
 

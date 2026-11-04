@@ -1,0 +1,14 @@
+# Copy to terraform.tfvars and adjust as needed. terraform.tfvars itself is
+# gitignored; this example file is committed.
+
+aws_region   = "us-east-1"
+service_name = "capture-proxy"
+environment  = "test"
+
+# Reachable from inside this VPC only by default (not the public internet).
+# Narrow this once test-service peering (or a shared VPC) exists - see the
+# TODOs in vpc.tf and security_groups.tf. netty_port ingress will also
+# change shape once the planned NLB + host-terminated TLS work lands.
+app_ingress_cidrs = ["10.1.0.0/16"]
+
+dynamodb_deletion_protection = true

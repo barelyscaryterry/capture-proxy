@@ -1,0 +1,68 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: ["Java CI with Maven"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  AWS_ROLE_ARN: arn:aws:iam::966676241497:role/capture-proxy-github-actions-deploy
+  ARTIFACTS_BUCKET: capture-proxy-test-deploy-artifacts-966676241497
+  CODEDEPLOY_APP: capture-proxy-test
+  CODEDEPLOY_DEPLOYMENT_GROUP: capture-proxy-test-dg
+
+jobs:
+  deploy:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build jar
+        run: mvn -B clean package -DskipTests
+
+      - name: Package deployment bundle
+        run: |
+          mkdir -p bundle
+          cp target/capture-proxy-1.0.0-SNAPSHOT.jar bundle/app.jar
+          cp appspec.yml bundle/
+          cp -r scripts bundle/
+          cd bundle && zip -r "../deploy-${{ github.event.workflow_run.head_sha }}.zip" .
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Upload bundle to S3
+        run: |
+          aws s3 cp "deploy-${{ github.event.workflow_run.head_sha }}.zip" \
+            "s3://${{ env.ARTIFACTS_BUCKET }}/deploy-${{ github.event.workflow_run.head_sha }}.zip"
+
+      - name: Trigger CodeDeploy deployment
+        id: deploy
+        run: |
+          DEPLOYMENT_ID=$(aws deploy create-deployment \
+            --application-name "${{ env.CODEDEPLOY_APP }}" \
+            --deployment-group-name "${{ env.CODEDEPLOY_DEPLOYMENT_GROUP }}" \
+            --s3-location bucket="${{ env.ARTIFACTS_BUCKET }}",key="deploy-${{ github.event.workflow_run.head_sha }}.zip",bundleType=zip \
+            --query 'deploymentId' --output text)
+          echo "deployment_id=$DEPLOYMENT_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for deployment to succeed
+        run: aws deploy wait deployment-successful --deployment-id "${{ steps.deploy.outputs.deployment_id }}"

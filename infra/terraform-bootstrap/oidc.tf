@@ -101,8 +101,42 @@ data "aws_iam_policy_document" "github_actions_permissions" {
       "iam:ListRolePolicies",
       "iam:ListAttachedRolePolicies",
       "iam:ListInstanceProfilesForRole",
+      "iam:ListPolicyVersions",
       "iam:PassRole",
     ]
+    resources = ["*"]
+  }
+
+  # Dashboard in infra/terraform/cloudwatch.tf (named after local.name_prefix).
+  statement {
+    sid = "CloudWatchDashboard"
+    actions = [
+      "cloudwatch:PutDashboard",
+      "cloudwatch:GetDashboard",
+      "cloudwatch:DeleteDashboards",
+    ]
+    resources = ["arn:aws:cloudwatch::${data.aws_caller_identity.current.account_id}:dashboard/${var.service_name}-*"]
+  }
+
+  # Captures log group in infra/terraform/cloudwatch.tf ("/<service>/<env>/captures").
+  # DescribeLogGroups has no resource-level scoping, so it gets its own "*" statement.
+  statement {
+    sid = "CaptureLogGroup"
+    actions = [
+      "logs:CreateLogGroup",
+      "logs:DeleteLogGroup",
+      "logs:PutRetentionPolicy",
+      "logs:DeleteRetentionPolicy",
+      "logs:TagResource",
+      "logs:UntagResource",
+      "logs:ListTagsForResource",
+    ]
+    resources = ["arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/${var.service_name}/*"]
+  }
+
+  statement {
+    sid       = "DescribeLogGroups"
+    actions   = ["logs:DescribeLogGroups"]
     resources = ["*"]
   }
 
@@ -246,3 +280,5 @@ resource "aws_iam_role_policy_attachment" "github_actions_deploy_permissions" {
   role       = aws_iam_role.github_actions_deploy.name
   policy_arn = aws_iam_policy.github_actions_deploy_permissions.arn
 }
+
+data "aws_caller_identity" "current" {}

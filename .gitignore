@@ -1,0 +1,27 @@
+target/
+.idea/
+*.iml
+
+# Terraform
+infra/terraform/.terraform/
+infra/terraform/*.tfstate
+infra/terraform/*.tfstate.*
+infra/terraform/*.tfvars
+!infra/terraform/terraform.tfvars.example
+infra/terraform/crash.log
+infra/terraform/override.tf
+infra/terraform/override.tf.json
+infra/terraform/tfplan
+
+infra/terraform-bootstrap/.terraform/
+infra/terraform-bootstrap/*.tfstate
+infra/terraform-bootstrap/*.tfstate.*
+infra/terraform-bootstrap/crash.log
+infra/terraform-bootstrap/tfplan
+
+# Local capture log output
+logs/
+
+# Demo site
+demo-site/node_modules/
+demo-site/dist/

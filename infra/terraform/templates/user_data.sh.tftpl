@@ -1,0 +1,66 @@
+#!/bin/bash
+set -euxo pipefail
+
+dnf install -y java-17-amazon-corretto-headless ruby wget amazon-cloudwatch-agent
+
+# CodeDeploy agent install - AWS-documented, region-specific bucket.
+cd /home/ec2-user
+wget https://aws-codedeploy-${aws_region}.s3.${aws_region}.amazonaws.com/latest/install
+chmod +x ./install
+./install auto
+systemctl enable codedeploy-agent
+systemctl start codedeploy-agent
+
+mkdir -p /opt/${service_name}
+useradd --system --no-create-home --shell /sbin/nologin ${service_name} || true
+chown ${service_name}:${service_name} /opt/${service_name}
+
+# Capture log dir - must match capture-proxy.capture.log-dir in application.properties.
+mkdir -p /var/log/capture-proxy
+chown ${service_name}:${service_name} /var/log/capture-proxy
+
+# CloudWatch agent tails the rolling capture log into the captures log group.
+# Logback rolls by renaming captures.log, so the agent follows the active file by name.
+cat > /opt/aws/amazon-cloudwatch-agent/etc/capture-proxy.json <<'CWAGENT'
+{
+  "agent": { "run_as_user": "root" },
+  "logs": {
+    "logs_collected": {
+      "files": {
+        "collect_list": [
+          {
+            "file_path": "/var/log/capture-proxy/captures.log",
+            "log_group_name": "${capture_log_group}",
+            "log_stream_name": "{instance_id}",
+            "retention_in_days": -1
+          }
+        ]
+      }
+    }
+  }
+}
+CWAGENT
+/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
+  -a fetch-config -m ec2 -s -c file:/opt/aws/amazon-cloudwatch-agent/etc/capture-proxy.json
+
+# Unit file is provisioned once here, not redeployed per-release - only the
+# jar under /opt/${service_name}/app.jar changes on each CodeDeploy deploy.
+cat > /etc/systemd/system/${service_name}.service <<UNIT
+[Unit]
+Description=${service_name}
+After=network.target
+
+[Service]
+Type=simple
+User=${service_name}
+ExecStart=/usr/bin/java -jar /opt/${service_name}/app.jar
+Restart=on-failure
+RestartSec=5
+Environment=AWS_REGION=${aws_region}
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+systemctl daemon-reload
+systemctl enable ${service_name}

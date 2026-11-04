@@ -19,7 +19,6 @@
 
     <properties>
         <java.version>17</java.version>
-        <traffic-replay-common.version>1.0.0-SNAPSHOT</traffic-replay-common.version>
         <aws.java.sdk.version>2.25.60</aws.java.sdk.version>
         <netty.version>4.1.101.Final</netty.version>
     </properties>
@@ -47,11 +46,6 @@
             <artifactId>dynamodb</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.trafficreplay</groupId>
-            <artifactId>traffic-replay-common</artifactId>
-            <version>${traffic-replay-common.version}</version>
-        </dependency>
-        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
@@ -62,6 +56,10 @@
         <dependency>
             <groupId>org.springframework.kafka</groupId>
             <artifactId>spring-kafka</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-cloudwatch2</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- Spring Boot's default console logging, unchanged. -->
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+
+    <springProperty scope="context" name="CAPTURE_LOG_DIR" source="capture-proxy.capture.log-dir"
+                    defaultValue="logs"/>
+
+    <!-- One JSON object per line; the CloudWatch agent tails this into /capture-proxy/captures. -->
+    <appender name="CAPTURE_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${CAPTURE_LOG_DIR}/captures.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${CAPTURE_LOG_DIR}/captures.%d{yyyy-MM-dd_HH}.%i.log</fileNamePattern>
+            <maxFileSize>50MB</maxFileSize>
+            <maxHistory>24</maxHistory>
+            <totalSizeCap>1GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Records are written from the Netty event loop: never block it. A full queue drops records. -->
+    <appender name="CAPTURE_ASYNC" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>8192</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+        <neverBlock>true</neverBlock>
+        <appender-ref ref="CAPTURE_FILE"/>
+    </appender>
+
+    <logger name="CAPTURE" level="INFO" additivity="false">
+        <appender-ref ref="CAPTURE_ASYNC"/>
+    </logger>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</configuration>
